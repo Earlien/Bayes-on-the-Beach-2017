@@ -1,0 +1,20 @@
+# BYM Model
+model {
+  for (i in 1:N) {
+    y[i] ~ dpois(RR[i])
+    RR[i] <- E[i] * exp(mu[i])
+    mu[i] <- alpha + S[i] + U[i] + beta * x[i]
+    U[i] ~ dnorm(0, tau.U)
+  }
+  alpha ~ dnorm(0, 0.01)
+  beta ~ dnorm(0, 0.01)
+  S[1:N] ~ car.normal(adj[], weights[], num[], tau.S)
+  
+  tau.S ~ dgamma(0.5, 1)
+  sigma.S <- pow(tau.S,-2)
+  
+  tau.U ~ dgamma(0.5, 1)
+  sigma.U <- pow(tau.U,-2)
+  
+  # Note: the car.normal() function makes WinBUGS code particularly convenient.  To implement in JAGS, you would need to specify a multivariate Normal distribution for S.
+}

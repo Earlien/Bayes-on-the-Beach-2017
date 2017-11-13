@@ -116,6 +116,88 @@ if(Model == "BYM"){
 		scale_y_continuous(bquote("Posterior density for "~rho))
 }
 
+
+
+
+
+#==========================================================================
+# Spatial plots (NEW)
+#==========================================================================
+
+message("Rendering posterior spatial plots ...")
+flush.console()
+
+gg.spat <- vector("list", 4)
+
+
+Append <- data.frame(
+    id = 1:N,
+    R = apply(pars$R, 2, mean),
+    Cov = mean(pars$beta) * x,
+    log.SIR = apply(pars$mu, 2, mean),
+    log.y = apply(log(pars$fitted), 2, mean)
+)
+
+# Create dataframe
+dat <- map.df
+dat$id <- as.numeric(dat$id) + 1
+dat <- merge(dat, Append, by = "id")		# Merge values with shapefile dataframe
+
+gg.base <-  ggplot(dat, aes(x = long, y = lat, group = group)) +
+    theme_grey() + theme(
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(vjust = -0.1, size = rel(0.8)),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.background = element_blank(),
+        strip.background = element_blank(),
+        legend.position = "bottom"
+    ) +     # These themes just make the plot look cleaner/nicer
+    ##coord_map() +
+    scale_x_continuous(expand = c(0.02, 0.02)) +
+    scale_y_continuous(expand = c(0.02, 0.02))  # Reduces white space around border
+
+Colours.all <- c(
+    "#003380", "#0047b3", "#005ce6", "#3399ff", "#66ccff", 
+    "white", 
+    "#ff9966", "#f45000", "#ff0000", "#af0303", "#831628"
+)   # Diverging colour schemes away from zero
+
+All <- Append[,2:5] # All variables in the diverging colour map
+Lim <- max(abs(range(All)))
+Values <- seq(-Lim, Lim, length = 11)
+mid <- which(abs(Values) < 1e-10)   # Value corresponding to zero (white)
+start <- ceiling(length(Colours.all)/2) - mid + 1
+Colours <- Colours.all[start:(start + length(Values) - 1)]
+
+# Rescale the values so that the maps have a consistent colour legend
+# (this is very important for being able to compare across these plots)
+Values.1 <- rescale(Values, from = range(Append$R))
+Values.2 <- rescale(Values, from = range(Append$Cov))
+Values.3 <- rescale(Values, from = range(Append$log.SIR))
+
+gg.spat[[1]] <- gg.base + geom_polygon(aes(fill = R), color = "grey70", size = 0.1) +
+    scale_fill_gradientn("", colours = Colours, values = Values.1,
+                         breaks = seq(-10, 10, 1)) +
+    ggtitle("R")
+
+gg.spat[[2]] <- gg.base + geom_polygon(aes(fill = Cov), color = "grey70", size = 0.1) +
+    scale_fill_gradientn("", colours = Colours, values = Values.2,
+                         breaks = seq(-10, 10, 0.5)) +
+    ggtitle(bquote("Covariate Effect"))
+
+gg.spat[[3]] <- gg.base + geom_polygon(aes(fill = log.SIR), color = "grey70", size = 0.1) +
+    scale_fill_gradientn("", colours = Colours, values = Values.3,
+                         breaks = seq(-10, 10, 2)) +
+    ggtitle("Log(SIR)")
+
+gg.spat[[4]] <- gg.base + geom_polygon(aes(fill = log.y), color = "black", size = 0.1) +
+    scale_fill_gradient("", low = "white", high = "black",
+                        breaks = seq(0, 10, 1), limits = c(0, max(dat$log.y))) +
+    ggtitle("Log(Observed Values)")
+
 message("... complete")
 
 # EOF
